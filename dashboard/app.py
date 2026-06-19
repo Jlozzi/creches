@@ -247,7 +247,8 @@ with tab1:
         )
         fig_bar.update_layout(
             coloraxis_showscale=False,
-            margin=dict(l=0, r=60, t=10, b=10),
+            yaxis=dict(automargin=True),
+            margin=dict(l=10, r=60, t=10, b=10),
             height=CHART_H,
             **_CHART_DEFAULTS,
         )
@@ -271,7 +272,8 @@ with tab1:
             hole=0.55,
             marker_colors=[COLORS[r] for r in dist["Resposta"]],
             textinfo="label+percent",
-            textfont=dict(color="#ffffff"),
+            insidetextfont=dict(color="#ffffff"),
+            outsidetextfont=dict(color="#1a1a1a"),
             sort=False,
         ))
         fig_donut.update_layout(
@@ -304,7 +306,8 @@ with tab1:
         )
         fig_creches.update_layout(
             coloraxis_showscale=False,
-            margin=dict(l=0, r=60, t=10, b=10),
+            yaxis=dict(automargin=True),
+            margin=dict(l=10, r=60, t=10, b=10),
             height=creches_h,
             **_CHART_DEFAULTS,
         )
@@ -613,7 +616,8 @@ with tab3:
         hole=0.6,
         marker_colors=[COLORS[r] for r in dist_p["Resposta"]],
         textinfo="label+percent",
-        textfont=dict(color="#ffffff"),
+        insidetextfont=dict(color="#ffffff"),
+        outsidetextfont=dict(color="#1a1a1a"),
         sort=False,
     ))
     fig_mini.update_layout(
