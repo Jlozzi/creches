@@ -218,7 +218,12 @@ with tab1:
 
     st.divider()
 
-    CHART_H = max(500, len(df_units["Qmun"].unique()) * 22)
+    # Calcula altura garantindo que o gráfico de creches tenha espaço suficiente
+    n_mun     = len(df_units["Qmun"].unique())
+    donut_h   = 260
+    creches_h = max(350, n_mun * 22)
+    CHART_H   = max(donut_h + creches_h + 80, n_mun * 28)
+
     col_bar, col_donut = st.columns([3, 2])
 
     with col_bar:
@@ -235,18 +240,20 @@ with tab1:
             color_continuous_scale=["#a5d6a7", "#1B5E20"],
             text="Qcount_criancas_num",
         )
-        fig_bar.update_traces(textposition="outside")
+        fig_bar.update_traces(
+            textposition="outside",
+            textfont=dict(color="#1a1a1a"),
+            cliponaxis=False,
+        )
         fig_bar.update_layout(
             coloraxis_showscale=False,
-            margin=dict(l=0, r=50, t=10, b=10),
+            margin=dict(l=0, r=60, t=10, b=10),
             height=CHART_H,
             **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with col_donut:
-        donut_h  = 280
-        creches_h = max(220, CHART_H - donut_h - 60)
 
         _h4("Distribuição Geral das Respostas")
         st.caption("Apenas respostas categóricas (exclui campos de múltipla escolha)")
@@ -264,6 +271,7 @@ with tab1:
             hole=0.55,
             marker_colors=[COLORS[r] for r in dist["Resposta"]],
             textinfo="label+percent",
+            textfont=dict(color="#ffffff"),
             sort=False,
         ))
         fig_donut.update_layout(
@@ -289,10 +297,14 @@ with tab1:
             color_continuous_scale=["#bbdefb", "#1565C0"],
             text="Creches",
         )
-        fig_creches.update_traces(textposition="outside")
+        fig_creches.update_traces(
+            textposition="outside",
+            textfont=dict(color="#1a1a1a"),
+            cliponaxis=False,
+        )
         fig_creches.update_layout(
             coloraxis_showscale=False,
-            margin=dict(l=0, r=50, t=10, b=10),
+            margin=dict(l=0, r=60, t=10, b=10),
             height=creches_h,
             **_CHART_DEFAULTS,
         )
@@ -332,7 +344,7 @@ with tab1:
             color_continuous_scale=["#a5d6a7", "#1B5E20"],
             labels={"Item": "", "% Unidades": "% das unidades"},
         )
-        fig_c12.update_traces(texttemplate="%{text}%", textposition="outside")
+        fig_c12.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_c12.update_layout(
             coloraxis_showscale=False,
             xaxis_range=[0, 120],
@@ -354,7 +366,7 @@ with tab1:
             color_continuous_scale=["#bbdefb", "#1565C0"],
             labels={"Item": "", "% Unidades": "% das unidades"},
         )
-        fig_f04.update_traces(texttemplate="%{text}%", textposition="outside")
+        fig_f04.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_f04.update_layout(
             coloraxis_showscale=False,
             xaxis_range=[0, 120],
@@ -383,7 +395,7 @@ with tab1:
         text="Conformidade (%)",
         labels={"Qmun": ""},
     )
-    fig_conf.update_traces(texttemplate="%{text}%", textposition="outside")
+    fig_conf.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
     fig_conf.update_layout(
         coloraxis_showscale=False,
         yaxis_range=[0, 115],
@@ -435,7 +447,7 @@ with tab2:
                 range_color=[0, 100],
                 labels={"Bloco": ""},
             )
-            fig_cb.update_traces(texttemplate="%{text}%", textposition="outside")
+            fig_cb.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
             fig_cb.update_layout(
                 coloraxis_showscale=False,
                 xaxis_range=[0, 115],
@@ -462,7 +474,7 @@ with tab2:
                 color_continuous_scale=["#FFCDD2", "#C62828"],
                 labels={"Bloco": ""},
             )
-            fig_ib.update_traces(texttemplate="%{text}%", textposition="outside")
+            fig_ib.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
             fig_ib.update_layout(
                 coloraxis_showscale=False,
                 xaxis_range=[0, 115],
@@ -523,7 +535,7 @@ with tab2:
             color_continuous_scale=["#FFCDD2", "#C62828"],
             labels={"Label": ""},
         )
-        fig_top.update_traces(texttemplate="%{text}%", textposition="outside")
+        fig_top.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_top.update_layout(
             coloraxis_showscale=False,
             xaxis_range=[0, 115],
@@ -600,7 +612,9 @@ with tab3:
         labels=dist_p["Resposta"], values=dist_p["Qtd"],
         hole=0.6,
         marker_colors=[COLORS[r] for r in dist_p["Resposta"]],
-        textinfo="label+percent", sort=False,
+        textinfo="label+percent",
+        textfont=dict(color="#ffffff"),
+        sort=False,
     ))
     fig_mini.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
