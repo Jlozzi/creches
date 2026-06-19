@@ -19,9 +19,13 @@ COLORS = {
     "Não Informado": "#BDBDBD",
 }
 RESP_ORDER = ["Sim", "Parcialmente", "Não", "Não Informado"]
-
-# Colunas de múltipla escolha e texto livre — excluídas do donut principal
 MULTI_CHOICE_IDS = {"C12_Tipo", "F04_Tipo"}
+
+# Padrão aplicado a todos os gráficos Plotly: fundo branco + texto escuro
+_CHART_DEFAULTS = dict(
+    paper_bgcolor="rgba(255,255,255,1)",
+    font=dict(color="#1a1a1a"),
+)
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -32,7 +36,7 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Fundo liso em todas as camadas do Streamlit */
+    /* Fundo azul em todas as camadas do Streamlit */
     .stApp,
     .stApp > div,
     [data-testid="stAppViewContainer"],
@@ -50,62 +54,85 @@ st.markdown("""
         background-color: #1a559a !important;
         border-right: 1px solid #154888;
     }
-
-    /* Apenas títulos e captions ficam brancos (fora dos cards) */
-    h1, h2, h3, h4, h5, h6 { color: #ffffff !important; }
-    [data-testid="stCaptionContainer"] p { color: #dceeff !important; }
-    hr { border-color: rgba(255,255,255,0.25) !important; }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab"] p { color: #ffffff !important; }
-
-    /* Texto da sidebar */
     section[data-testid="stSidebar"] p,
     section[data-testid="stSidebar"] span,
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] .stMarkdown { color: #e8f0ff !important; }
 
-    /* Card branco para gráficos Plotly */
+    /* Divisores e tabs */
+    hr { border-color: rgba(255,255,255,0.3) !important; }
+    .stTabs [data-baseweb="tab"] p,
+    .stTabs [data-baseweb="tab"] button { color: #ffffff !important; }
+
+    /* Labels dos filtros */
+    .stMultiSelect label,
+    .stSelectbox label,
+    .stTextInput label { color: #ffffff !important; }
+
+    /* Caption */
+    [data-testid="stCaptionContainer"] p { color: #dceeff !important; }
+
+    /* Cards dos gráficos — sombra e borda arredondada (fundo vem do paper_bgcolor do Plotly) */
     div[data-testid="stPlotlyChart"] {
-        background: #ffffff !important;
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-        padding: 12px 8px 4px 8px;
-        margin-bottom: 4px;
+        padding: 4px;
+        overflow: hidden;
     }
 
-    /* Card branco para métricas */
-    div[data-testid="metric-container"] {
-        background: #ffffff !important;
-        border-radius: 10px;
-        padding: 14px 18px;
-        border-left: 4px solid #2E7D32;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-    }
-
-    /* Texto dentro das métricas — escuro sobre fundo branco */
-    div[data-testid="metric-container"] label,
-    div[data-testid="metric-container"] p,
-    div[data-testid="metric-container"] span { color: #1a1a1a !important; }
-
-    /* Card branco para a tabela */
+    /* Card da tabela */
     div[data-testid="stDataFrame"] {
         background: #ffffff !important;
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-        padding: 4px;
+        overflow: hidden;
+    }
+
+    /* Input de busca */
+    .stTextInput > div > div > input {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border-color: #cccccc !important;
+        border-radius: 8px !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Data ─────────────────────────────────────────────────────────────────────
+
+# ── Helpers de UI ─────────────────────────────────────────────────────────────
+def _h2(text: str) -> None:
+    st.markdown(
+        f"<h2 style='color:#ffffff;margin:8px 0 12px 0'>{text}</h2>",
+        unsafe_allow_html=True,
+    )
+
+
+def _h4(text: str) -> None:
+    st.markdown(
+        f"<h4 style='color:#ffffff;margin:10px 0 4px 0'>{text}</h4>",
+        unsafe_allow_html=True,
+    )
+
+
+def _metric_card(label: str, value, border_color: str = "#2E7D32") -> str:
+    return f"""
+    <div style="background:#ffffff;border-radius:10px;padding:14px 18px;
+                border-left:4px solid {border_color};
+                box-shadow:0 2px 10px rgba(0,0,0,0.15);margin-bottom:8px;">
+        <p style="margin:0;font-size:0.75rem;color:#666666;font-weight:600;
+                  text-transform:uppercase;letter-spacing:0.05em">{label}</p>
+        <p style="margin:4px 0 0 0;font-size:1.5rem;font-weight:700;color:#1a1a1a;">{value}</p>
+    </div>
+    """
+
+
+# ── Data ──────────────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data() -> pd.DataFrame:
     if not os.path.exists(DATA_PATH):
         st.error("Execute primeiro: `python etl/etl.py`")
         st.stop()
     df = pd.read_csv(DATA_PATH, encoding="utf-8-sig")
-    # Normaliza resposta para 4 categorias usadas nos gráficos
     valid = {"Sim", "Não", "Parcialmente"}
     df["Resposta_Chart"] = df["Resposta"].apply(
         lambda r: r if r in valid else "Não Informado"
@@ -115,7 +142,7 @@ def load_data() -> pd.DataFrame:
 
 df_all = load_data()
 
-# ── Sidebar – dropdowns em cascata ────────────────────────────────────────────
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### Fiscalização de Creches 2026")
     st.caption("TCE-MT · Infraestrutura e Fila de Espera")
@@ -135,7 +162,7 @@ with st.sidebar:
     st.divider()
     st.caption("Respostas válidas: Sim · Não · Parcialmente")
 
-# ── Filtro aplicado ───────────────────────────────────────────────────────────
+# ── Filtro ────────────────────────────────────────────────────────────────────
 df = df_all.copy()
 if sel_mun != "Todos":
     df = df[df["Qmun"] == sel_mun]
@@ -149,13 +176,13 @@ df_units = (
 df_valid = df[df["Resposta_Valida"]]
 
 # ── Métricas base ─────────────────────────────────────────────────────────────
-n_municipios  = df_units["Qmun"].nunique()
-n_unidades    = df_units["Qnome_unidade"].nunique()
-n_criancas    = int(df_units["Qcount_criancas_num"].sum())
-conf_geral    = round((df_valid["Resposta"] == "Sim").sum() / max(len(df_valid), 1) * 100, 1)
+n_municipios = df_units["Qmun"].nunique()
+n_unidades   = df_units["Qnome_unidade"].nunique()
+n_criancas   = int(df_units["Qcount_criancas_num"].sum())
+conf_geral   = round((df_valid["Resposta"] == "Sim").sum() / max(len(df_valid), 1) * 100, 1)
 
 df_g_valid = df[(df["Bloco_ID"] == "G") & df["Resposta_Valida"]]
-inconf_g = round((df_g_valid["Resposta"] == "Não").sum() / max(len(df_g_valid), 1) * 100, 1)
+inconf_g   = round((df_g_valid["Resposta"] == "Não").sum() / max(len(df_g_valid), 1) * 100, 1)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3 = st.tabs([
@@ -164,29 +191,34 @@ tab1, tab2, tab3 = st.tabs([
     "Indicadores por Pergunta",
 ])
 
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # TAB 1 – MAIN PAGE
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 with tab1:
-    st.markdown("## Painel Geral")
+    _h2("Painel Geral")
 
     k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Municípios", n_municipios)
-    k2.metric("Unidades fiscalizadas", n_unidades)
-    k3.metric("Crianças atendidas", f"{n_criancas:,}".replace(",", "."))
-    k4.metric("Conformidade geral", f"{conf_geral}%")
-    k5.metric("Inconformidade crítica (Bloco G)", f"{inconf_g}%")
+    with k1:
+        st.markdown(_metric_card("Municípios", n_municipios), unsafe_allow_html=True)
+    with k2:
+        st.markdown(_metric_card("Unidades fiscalizadas", n_unidades), unsafe_allow_html=True)
+    with k3:
+        st.markdown(
+            _metric_card("Crianças atendidas", f"{n_criancas:,}".replace(",", ".")),
+            unsafe_allow_html=True,
+        )
+    with k4:
+        st.markdown(_metric_card("Conformidade geral", f"{conf_geral}%", "#1565C0"), unsafe_allow_html=True)
+    with k5:
+        st.markdown(_metric_card("Inconformidade Bloco G", f"{inconf_g}%", "#C62828"), unsafe_allow_html=True)
 
     st.divider()
 
-    # Altura compartilhada entre as colunas para alinhamento visual
     CHART_H = max(500, len(df_units["Qmun"].unique()) * 22)
-
     col_bar, col_donut = st.columns([3, 2])
 
-    # Ranking municípios por crianças
     with col_bar:
-        st.markdown("#### Municípios por Crianças Atendidas")
+        _h4("Municípios por Crianças Atendidas")
         mun_cri = (
             df_units.groupby("Qmun")["Qcount_criancas_num"]
             .sum().reset_index()
@@ -204,15 +236,15 @@ with tab1:
             coloraxis_showscale=False,
             margin=dict(l=0, r=50, t=10, b=10),
             height=CHART_H,
+            **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    # Donut + Creches visitadas — mesma altura total da coluna esquerda
     with col_donut:
-        donut_h = 280
-        creches_h = max(220, CHART_H - donut_h - 60)  # 60px = título + caption
+        donut_h  = 280
+        creches_h = max(220, CHART_H - donut_h - 60)
 
-        st.markdown("#### Distribuição Geral das Respostas")
+        _h4("Distribuição Geral das Respostas")
         st.caption("Apenas respostas categóricas (exclui campos de múltipla escolha)")
         df_donut = df[~df["ID_Pergunta"].isin(MULTI_CHOICE_IDS)]
         dist = (
@@ -235,11 +267,11 @@ with tab1:
             showlegend=True,
             legend=dict(orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center"),
             height=donut_h,
+            **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_donut, use_container_width=True)
 
-        # Creches visitadas por município
-        st.markdown("#### Creches Visitadas por Município")
+        _h4("Creches Visitadas por Município")
         creches_mun = (
             df_units.groupby("Qmun")["Qnome_unidade"]
             .count().reset_index()
@@ -258,16 +290,15 @@ with tab1:
             coloraxis_showscale=False,
             margin=dict(l=0, r=50, t=10, b=10),
             height=creches_h,
+            **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_creches, use_container_width=True)
 
     st.divider()
 
-    # Distribuição dos campos de múltipla escolha
-    st.markdown("#### Distribuição das Respostas de Múltipla Escolha")
+    _h4("Distribuição das Respostas de Múltipla Escolha")
 
-    def dist_multi(col_id: str) -> pd.DataFrame:
-        """Expande respostas pipe-separadas e conta por unidade única."""
+    def dist_multi(col_id: str):
         subset = (
             df[df["ID_Pergunta"] == col_id]
             .drop_duplicates(subset=["Qnome_unidade"])
@@ -287,7 +318,7 @@ with tab1:
     col_c12, col_f04 = st.columns(2)
 
     with col_c12:
-        st.markdown("**Acessibilidade Física (C12)**")
+        st.markdown("<b style='color:white'>Acessibilidade Física (C12)</b>", unsafe_allow_html=True)
         c12_data, c12_total = dist_multi("C12_Tipo")
         fig_c12 = px.bar(
             c12_data.sort_values("% Unidades", ascending=True),
@@ -303,12 +334,13 @@ with tab1:
             xaxis_range=[0, 120],
             margin=dict(l=0, r=40, t=10, b=10),
             height=260,
+            **_CHART_DEFAULTS,
         )
         st.caption(f"Base: {c12_total} unidades")
         st.plotly_chart(fig_c12, use_container_width=True)
 
     with col_f04:
-        st.markdown("**Formas de Comunicação com as Famílias (F04)**")
+        st.markdown("<b style='color:white'>Formas de Comunicação com as Famílias (F04)</b>", unsafe_allow_html=True)
         f04_data, f04_total = dist_multi("F04_Tipo")
         fig_f04 = px.bar(
             f04_data.sort_values("% Unidades", ascending=True),
@@ -324,14 +356,14 @@ with tab1:
             xaxis_range=[0, 120],
             margin=dict(l=0, r=40, t=10, b=10),
             height=260,
+            **_CHART_DEFAULTS,
         )
         st.caption(f"Base: {f04_total} unidades")
         st.plotly_chart(fig_f04, use_container_width=True)
 
     st.divider()
 
-    # Conformidade por município
-    st.markdown("#### Conformidade por Município (%)")
+    _h4("Conformidade por Município (%)")
     conf_mun = (
         df[df["Resposta_Valida"]]
         .groupby("Qmun")["Resposta"]
@@ -354,15 +386,16 @@ with tab1:
         xaxis_tickangle=-35,
         margin=dict(l=10, r=10, t=10, b=80),
         height=380,
+        **_CHART_DEFAULTS,
     )
     st.plotly_chart(fig_conf, use_container_width=True)
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # TAB 2 – SEGMENTOS POR BLOCO
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 with tab2:
-    st.markdown("## Análise por Bloco do Questionário")
+    _h2("Análise por Bloco do Questionário")
 
     blocos_disp = sorted(df["Bloco_ID"].unique())
     sel_blocos = st.multiselect(
@@ -380,9 +413,8 @@ with tab2:
     else:
         col_l, col_r = st.columns(2)
 
-        # Aderência por bloco
         with col_l:
-            st.markdown("#### Aderência por Bloco (% Sim)")
+            _h4("Aderência por Bloco (% Sim)")
             conf_bloco = (
                 df_seg_valid.groupby("Bloco_ID")["Resposta"]
                 .apply(lambda x: round((x == "Sim").sum() / len(x) * 100, 1))
@@ -404,12 +436,12 @@ with tab2:
                 xaxis_range=[0, 115],
                 margin=dict(l=0, r=30, t=10, b=10),
                 height=320,
+                **_CHART_DEFAULTS,
             )
             st.plotly_chart(fig_cb, use_container_width=True)
 
-        # Inconformidade por bloco
         with col_r:
-            st.markdown("#### Pontos de Atenção por Bloco (% Não)")
+            _h4("Pontos de Atenção por Bloco (% Não)")
             inconf_bloco = (
                 df_seg_valid.groupby("Bloco_ID")["Resposta"]
                 .apply(lambda x: round((x == "Não").sum() / len(x) * 100, 1))
@@ -430,13 +462,13 @@ with tab2:
                 xaxis_range=[0, 115],
                 margin=dict(l=0, r=30, t=10, b=10),
                 height=320,
+                **_CHART_DEFAULTS,
             )
             st.plotly_chart(fig_ib, use_container_width=True)
 
         st.divider()
 
-        # Stacked bar normalizado – apenas 4 categorias
-        st.markdown("#### Distribuição de Respostas por Bloco")
+        _h4("Distribuição de Respostas por Bloco")
         resp_bloco = (
             df_seg.groupby(["Bloco_ID", "Resposta_Chart"])
             .size().reset_index(name="Qtd")
@@ -460,13 +492,13 @@ with tab2:
                 y=0.5, yanchor="middle",
                 title="",
             ),
+            **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_stack, use_container_width=True)
 
         st.divider()
 
-        # Top 10 perguntas com mais Não
-        st.markdown("#### Top 10 Perguntas com Maior Índice de Inconformidade")
+        _h4("Top 10 Perguntas com Maior Índice de Inconformidade")
         top_nao = (
             df_seg_valid.groupby(["ID_Pergunta", "Texto_Pergunta"])["Resposta"]
             .apply(lambda x: round((x == "Não").sum() / len(x) * 100, 1))
@@ -491,15 +523,16 @@ with tab2:
             margin=dict(l=0, r=30, t=10, b=10),
             height=420,
             yaxis={"autorange": "reversed"},
+            **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_top, use_container_width=True)
 
 
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 # TAB 3 – INDICADORES POR PERGUNTA
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════════════
 with tab3:
-    st.markdown("## Indicadores por Pergunta")
+    _h2("Indicadores por Pergunta")
 
     perguntas_df = (
         df[["ID_Pergunta", "Texto_Pergunta", "Bloco_ID"]]
@@ -519,11 +552,15 @@ with tab3:
         format_func=lambda k: opcoes[k],
     )
 
-    df_perg = df[df["ID_Pergunta"] == pergunta_sel]
+    df_perg       = df[df["ID_Pergunta"] == pergunta_sel]
     df_perg_valid = df_perg[df_perg["Resposta_Valida"]]
 
     if not df_perg.empty:
-        st.markdown(f"> **{df_perg['Texto_Pergunta'].iloc[0]}**")
+        st.markdown(
+            f"<p style='color:#ffffff;font-size:1rem;font-style:italic;margin:4px 0 8px 0'>"
+            f"<b>{df_perg['Texto_Pergunta'].iloc[0]}</b></p>",
+            unsafe_allow_html=True,
+        )
 
     st.divider()
 
@@ -534,13 +571,17 @@ with tab3:
     conf_p = round(n_sim / max(len(df_perg_valid), 1) * 100, 1)
 
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Sim", n_sim)
-    m2.metric("Não", n_nao)
-    m3.metric("Parcialmente", n_parc)
-    m4.metric("Não Informado", n_ni)
-    m5.metric("Conformidade", f"{conf_p}%")
+    with m1:
+        st.markdown(_metric_card("Sim", n_sim, "#2E7D32"), unsafe_allow_html=True)
+    with m2:
+        st.markdown(_metric_card("Não", n_nao, "#C62828"), unsafe_allow_html=True)
+    with m3:
+        st.markdown(_metric_card("Parcialmente", n_parc, "#F9A825"), unsafe_allow_html=True)
+    with m4:
+        st.markdown(_metric_card("Não Informado", n_ni, "#9E9E9E"), unsafe_allow_html=True)
+    with m5:
+        st.markdown(_metric_card("Conformidade", f"{conf_p}%", "#1565C0"), unsafe_allow_html=True)
 
-    # Mini donut – 4 categorias
     dist_p = (
         df_perg.groupby("Resposta_Chart").size()
         .reindex(RESP_ORDER, fill_value=0)
@@ -559,13 +600,14 @@ with tab3:
         height=300,
         showlegend=True,
         legend=dict(orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center"),
+        **_CHART_DEFAULTS,
     )
     _, col_mini, _ = st.columns([1, 2, 1])
     with col_mini:
         st.plotly_chart(fig_mini, use_container_width=True)
 
     st.divider()
-    st.markdown("#### Detalhamento por Unidade")
+    _h4("Detalhamento por Unidade")
 
     busca = st.text_input("Buscar unidade ou município", placeholder="Digite para filtrar…")
 
