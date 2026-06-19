@@ -24,6 +24,7 @@ MULTI_CHOICE_IDS = {"C12_Tipo", "F04_Tipo"}
 # Padrão aplicado a todos os gráficos Plotly: fundo branco + texto escuro
 _CHART_DEFAULTS = dict(
     paper_bgcolor="rgba(255,255,255,1)",
+    plot_bgcolor="rgba(255,255,255,1)",
     font=dict(color="#1a1a1a"),
 )
 
@@ -72,8 +73,9 @@ st.markdown("""
     /* Caption */
     [data-testid="stCaptionContainer"] p { color: #dceeff !important; }
 
-    /* Cards dos gráficos — sombra e borda arredondada (fundo vem do paper_bgcolor do Plotly) */
+    /* Cards dos gráficos */
     div[data-testid="stPlotlyChart"] {
+        background: #ffffff !important;
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.15);
         padding: 4px;
@@ -102,14 +104,16 @@ st.markdown("""
 # ── Helpers de UI ─────────────────────────────────────────────────────────────
 def _h2(text: str) -> None:
     st.markdown(
-        f"<h2 style='color:#ffffff;margin:8px 0 12px 0'>{text}</h2>",
+        f"<p style='color:#ffffff;font-size:1.7rem;font-weight:700;"
+        f"margin:8px 0 12px 0;line-height:1.2'>{text}</p>",
         unsafe_allow_html=True,
     )
 
 
 def _h4(text: str) -> None:
     st.markdown(
-        f"<h4 style='color:#ffffff;margin:10px 0 4px 0'>{text}</h4>",
+        f"<p style='color:#ffffff;font-size:1.1rem;font-weight:600;"
+        f"margin:10px 0 4px 0'>{text}</p>",
         unsafe_allow_html=True,
     )
 
@@ -384,8 +388,9 @@ with tab1:
         coloraxis_showscale=False,
         yaxis_range=[0, 115],
         xaxis_tickangle=-35,
-        margin=dict(l=10, r=10, t=10, b=80),
-        height=380,
+        xaxis=dict(automargin=True),
+        margin=dict(l=10, r=10, t=10, b=100),
+        height=400,
         **_CHART_DEFAULTS,
     )
     st.plotly_chart(fig_conf, use_container_width=True)
@@ -434,7 +439,8 @@ with tab2:
             fig_cb.update_layout(
                 coloraxis_showscale=False,
                 xaxis_range=[0, 115],
-                margin=dict(l=0, r=30, t=10, b=10),
+                yaxis=dict(automargin=True),
+                margin=dict(l=10, r=30, t=10, b=10),
                 height=320,
                 **_CHART_DEFAULTS,
             )
@@ -460,7 +466,8 @@ with tab2:
             fig_ib.update_layout(
                 coloraxis_showscale=False,
                 xaxis_range=[0, 115],
-                margin=dict(l=0, r=30, t=10, b=10),
+                yaxis=dict(automargin=True),
+                margin=dict(l=10, r=30, t=10, b=10),
                 height=320,
                 **_CHART_DEFAULTS,
             )
@@ -520,9 +527,9 @@ with tab2:
         fig_top.update_layout(
             coloraxis_showscale=False,
             xaxis_range=[0, 115],
-            margin=dict(l=0, r=30, t=10, b=10),
+            margin=dict(l=10, r=30, t=10, b=10),
             height=420,
-            yaxis={"autorange": "reversed"},
+            yaxis={"autorange": "reversed", "automargin": True},
             **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_top, use_container_width=True)
