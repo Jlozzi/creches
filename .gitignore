@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Arquivos de trabalho local (não necessários no deploy)
+archives/
+claude.md
+
+# Dados brutos (o app usa apenas o CSV já processado)
+data/fact_wide.csv
+
+# OS
+.DS_Store
+Thumbs.db
