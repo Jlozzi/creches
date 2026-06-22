@@ -688,19 +688,41 @@ with tab3:
         )
         tabela = tabela[mask_b].reset_index(drop=True)
 
-    def _style_row(row):
-        r = row["Resposta"]
-        base = ["", ""]
+    def _resposta_style(r: str) -> str:
         if r == "Não":
-            return base + ["background-color:#FFCDD2;color:#B71C1C;font-weight:bold"]
+            return "background:#FFCDD2;color:#B71C1C;font-weight:700"
         if r == "Parcialmente":
-            return base + ["background-color:#FFF9C4;color:#7B6000"]
+            return "background:#FFF9C4;color:#7B6000"
         if r == "Sim":
-            return base + ["background-color:#C8E6C9;color:#1B5E20"]
-        return base + ["color:#9E9E9E"]
+            return "background:#C8E6C9;color:#1B5E20"
+        return "color:#9E9E9E"
 
-    st.dataframe(
-        tabela.style.apply(_style_row, axis=1),
-        use_container_width=True,
-        height=500,
-    )
+    linhas = ""
+    for i, row in tabela.iterrows():
+        bg = "#f9f9f9" if i % 2 == 0 else "#ffffff"
+        resp_style = _resposta_style(row["Resposta"])
+        linhas += (
+            f"<tr style='background:{bg}'>"
+            f"<td style='padding:8px 14px;border-bottom:1px solid #e8e8e8;color:#1a1a1a'>{row['Município']}</td>"
+            f"<td style='padding:8px 14px;border-bottom:1px solid #e8e8e8;color:#1a1a1a'>{row['Unidade']}</td>"
+            f"<td style='padding:8px 14px;border-bottom:1px solid #e8e8e8;{resp_style}'>{row['Resposta']}</td>"
+            f"</tr>"
+        )
+
+    tabela_html = f"""
+    <div style="background:#ffffff;border-radius:12px;
+                box-shadow:0 2px 10px rgba(0,0,0,0.15);
+                overflow-y:auto;max-height:520px;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+        <thead>
+          <tr style="background:#1a559a;position:sticky;top:0">
+            <th style="padding:10px 14px;text-align:left;color:#ffffff;font-weight:600">Município</th>
+            <th style="padding:10px 14px;text-align:left;color:#ffffff;font-weight:600">Unidade</th>
+            <th style="padding:10px 14px;text-align:left;color:#ffffff;font-weight:600">Resposta</th>
+          </tr>
+        </thead>
+        <tbody>{linhas}</tbody>
+      </table>
+    </div>
+    """
+    st.markdown(tabela_html, unsafe_allow_html=True)
