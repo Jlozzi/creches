@@ -101,6 +101,21 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
+    /* Botão de limpar filtro na sidebar */
+    section[data-testid="stSidebar"] .stButton button {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #c0cfe8 !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        width: 100% !important;
+    }
+    section[data-testid="stSidebar"] .stButton button:hover {
+        background-color: #f0f4ff !important;
+        color: #1a559a !important;
+        border-color: #1a559a !important;
+    }
+
     /* Caixas de seleção (selectbox) na sidebar — fundo branco, texto escuro */
     section[data-testid="stSidebar"] [data-baseweb="select"] > div:first-child {
         background-color: #ffffff !important;
@@ -147,12 +162,17 @@ def _h4(text: str) -> None:
 
 def _metric_card(label: str, value, border_color: str = "#2E7D32") -> str:
     return f"""
-    <div style="background:#ffffff;border-radius:10px;padding:14px 18px;
+    <div style="background:#ffffff;border-radius:10px;padding:12px 18px;
                 border-left:4px solid {border_color};
-                box-shadow:0 2px 10px rgba(0,0,0,0.15);margin-bottom:8px;">
-        <p style="margin:0;font-size:0.75rem;color:#666666;font-weight:600;
-                  text-transform:uppercase;letter-spacing:0.05em">{label}</p>
-        <p style="margin:4px 0 0 0;font-size:1.5rem;font-weight:700;color:#1a1a1a;">{value}</p>
+                box-shadow:0 2px 10px rgba(0,0,0,0.15);margin-bottom:8px;
+                height:100px;display:flex;flex-direction:column;justify-content:center;
+                box-sizing:border-box;overflow:hidden;">
+        <p style="margin:0;font-size:0.70rem;color:#666666;font-weight:600;
+                  text-transform:uppercase;letter-spacing:0.04em;
+                  line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;
+                  -webkit-box-orient:vertical;overflow:hidden">{label}</p>
+        <p style="margin:4px 0 0 0;font-size:1.5rem;font-weight:700;color:#1a1a1a;
+                  white-space:nowrap">{value}</p>
     </div>
     """
 
@@ -173,6 +193,12 @@ def load_data() -> pd.DataFrame:
 
 df_all = load_data()
 
+# ── Session state – filtros via clique nos gráficos ───────────────────────────
+if "sel_mun_state" not in st.session_state:
+    st.session_state["sel_mun_state"] = "Todos"
+if "sel_uni_state" not in st.session_state:
+    st.session_state["sel_uni_state"] = "Todas"
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### Fiscalização de Creches 2026")
@@ -180,7 +206,16 @@ with st.sidebar:
     st.divider()
 
     municipios = ["Todos"] + sorted(df_all["Qmun"].dropna().unique())
-    sel_mun = st.selectbox("Município", municipios)
+
+    # Garante que o valor em session_state é válido
+    if st.session_state["sel_mun_state"] not in municipios:
+        st.session_state["sel_mun_state"] = "Todos"
+
+    sel_mun = st.selectbox(
+        "Município", municipios,
+        index=municipios.index(st.session_state["sel_mun_state"]),
+    )
+    st.session_state["sel_mun_state"] = sel_mun
 
     if sel_mun == "Todos":
         uni_pool = df_all
@@ -188,10 +223,25 @@ with st.sidebar:
         uni_pool = df_all[df_all["Qmun"] == sel_mun]
 
     unidades = ["Todas"] + sorted(uni_pool["Qnome_unidade"].dropna().unique())
-    sel_uni = st.selectbox("Unidade / Creche", unidades)
+
+    if st.session_state["sel_uni_state"] not in unidades:
+        st.session_state["sel_uni_state"] = "Todas"
+
+    sel_uni = st.selectbox(
+        "Unidade / Creche", unidades,
+        index=unidades.index(st.session_state["sel_uni_state"]),
+    )
+    st.session_state["sel_uni_state"] = sel_uni
+
+    if sel_mun != "Todos":
+        if st.button("✕ Limpar filtro de município"):
+            st.session_state["sel_mun_state"] = "Todos"
+            st.session_state["sel_uni_state"] = "Todas"
+            st.rerun()
 
     st.divider()
     st.caption("Respostas válidas: Sim · Não · Parcialmente")
+    st.caption("Clique em um município nos gráficos para filtrar.")
 
 # ── Filtro ────────────────────────────────────────────────────────────────────
 df = df_all.copy()
@@ -212,8 +262,14 @@ n_unidades   = df_units["Qnome_unidade"].nunique()
 n_criancas   = int(df_units["Qcount_criancas_num"].sum())
 conf_geral   = round((df_valid["Resposta"] == "Sim").sum() / max(len(df_valid), 1) * 100, 1)
 
-df_g_valid = df[(df["Bloco_ID"] == "G") & df["Resposta_Valida"]]
-inconf_g   = round((df_g_valid["Resposta"] == "Não").sum() / max(len(df_g_valid), 1) * 100, 1)
+_nao_bloco = (
+    df[df["Resposta_Valida"]]
+    .groupby("Bloco_ID")["Resposta"]
+    .apply(lambda x: (x == "Não").sum() / len(x) * 100)
+)
+bloco_pior     = _nao_bloco.idxmax() if not _nao_bloco.empty else "G"
+inconf_g       = round(_nao_bloco.max(), 1) if not _nao_bloco.empty else 0.0
+bloco_pior_nome = BLOCK_MAP.get(bloco_pior, bloco_pior)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3 = st.tabs([
@@ -241,17 +297,57 @@ with tab1:
     with k4:
         st.markdown(_metric_card("Conformidade geral", f"{conf_geral}%", "#1565C0"), unsafe_allow_html=True)
     with k5:
-        st.markdown(_metric_card("Inconformidade Bloco G", f"{inconf_g}%", "#C62828"), unsafe_allow_html=True)
+        st.markdown(_metric_card(f"Maior Inconformidade · {bloco_pior_nome}", f"{inconf_g}%", "#C62828"), unsafe_allow_html=True)
 
     st.divider()
 
-    # Calcula altura garantindo que o gráfico de creches tenha espaço suficiente
-    n_mun     = len(df_units["Qmun"].unique())
-    donut_h   = 260
-    creches_h = max(350, n_mun * 22)
-    CHART_H   = max(donut_h + creches_h + 80, n_mun * 28)
+    n_mun    = len(df_units["Qmun"].unique())
+    bars_h   = max(380, n_mun * 24)
 
-    col_bar, col_donut = st.columns([3, 2])
+    # ── Donut (linha própria, centrado) ───────────────────────────────────────
+    _, col_donut_c, _ = st.columns([1, 2, 1])
+    with col_donut_c:
+        _h4("Distribuição Geral das Respostas")
+        st.markdown(
+            "<p style='color:#ffffff;font-size:0.78rem;margin:-6px 0 6px 0'>"
+            "Distribuição bruta — 'Não Informado' entra no denominador, por isso o % Sim "
+            "pode diferir da Conformidade Geral (que usa apenas respostas válidas).</p>",
+            unsafe_allow_html=True,
+        )
+        df_donut = df[~df["ID_Pergunta"].isin(MULTI_CHOICE_IDS)]
+        dist = (
+            df_donut.groupby("Resposta_Chart").size()
+            .reindex(RESP_ORDER, fill_value=0)
+            .reset_index(name="Qtd")
+            .rename(columns={"Resposta_Chart": "Resposta"})
+        )
+        dist = dist[dist["Qtd"] > 0]
+        fig_donut = go.Figure(go.Pie(
+            labels=dist["Resposta"],
+            values=dist["Qtd"],
+            hole=0.55,
+            marker_colors=[COLORS[r] for r in dist["Resposta"]],
+            textinfo="label+percent",
+            insidetextfont=dict(color="#ffffff"),
+            outsidetextfont=dict(color="#1a1a1a"),
+            sort=False,
+        ))
+        fig_donut.update_layout(
+            margin=dict(l=20, r=20, t=20, b=120),
+            showlegend=True,
+            legend=dict(
+                orientation="h", yanchor="top", y=-0.16, x=0.5, xanchor="center",
+                font=_FONT_BLACK,
+            ),
+            height=480,
+            **_CHART_DEFAULTS,
+        )
+        st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": False})
+
+    st.divider()
+
+    # ── Crianças Atendidas | Creches Visitadas (mesma altura, alinhados) ──────
+    col_bar, col_creches = st.columns(2)
 
     with col_bar:
         _h4("Municípios por Crianças Atendidas")
@@ -274,48 +370,23 @@ with tab1:
         )
         fig_bar.update_layout(
             coloraxis_showscale=False,
-            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
-            xaxis=dict(tickfont=_FONT_BLACK),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+            xaxis=dict(tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
             margin=dict(l=10, r=60, t=10, b=10),
-            height=CHART_H,
+            height=bars_h,
             **_CHART_DEFAULTS,
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        ev_bar = st.plotly_chart(fig_bar, use_container_width=True,
+                                 on_select="rerun", key="chart_bar_mun", config={"displayModeBar": False})
+        if ev_bar.selection.points:
+            clicked = ev_bar.selection.points[0].get("y")
+            if clicked and clicked in municipios:
+                new_val = "Todos" if st.session_state["sel_mun_state"] == clicked else clicked
+                st.session_state["sel_mun_state"] = new_val
+                st.session_state["sel_uni_state"] = "Todas"
+                st.rerun()
 
-    with col_donut:
-
-        _h4("Distribuição Geral das Respostas")
-        st.caption("Apenas respostas categóricas (exclui campos de múltipla escolha)")
-        df_donut = df[~df["ID_Pergunta"].isin(MULTI_CHOICE_IDS)]
-        dist = (
-            df_donut.groupby("Resposta_Chart").size()
-            .reindex(RESP_ORDER, fill_value=0)
-            .reset_index(name="Qtd")
-            .rename(columns={"Resposta_Chart": "Resposta"})
-        )
-        dist = dist[dist["Qtd"] > 0]
-        fig_donut = go.Figure(go.Pie(
-            labels=dist["Resposta"],
-            values=dist["Qtd"],
-            hole=0.55,
-            marker_colors=[COLORS[r] for r in dist["Resposta"]],
-            textinfo="label+percent",
-            insidetextfont=dict(color="#ffffff"),
-            outsidetextfont=dict(color="#1a1a1a"),
-            sort=False,
-        ))
-        fig_donut.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10),
-            showlegend=True,
-            legend=dict(
-                orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center",
-                font=_FONT_BLACK,
-            ),
-            height=donut_h,
-            **_CHART_DEFAULTS,
-        )
-        st.plotly_chart(fig_donut, use_container_width=True)
-
+    with col_creches:
         _h4("Creches Visitadas por Município")
         creches_mun = (
             df_units.groupby("Qmun")["Qnome_unidade"]
@@ -337,13 +408,21 @@ with tab1:
         )
         fig_creches.update_layout(
             coloraxis_showscale=False,
-            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
-            xaxis=dict(tickfont=_FONT_BLACK),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+            xaxis=dict(tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
             margin=dict(l=10, r=60, t=10, b=10),
-            height=creches_h,
+            height=bars_h,
             **_CHART_DEFAULTS,
         )
-        st.plotly_chart(fig_creches, use_container_width=True)
+        ev_creches = st.plotly_chart(fig_creches, use_container_width=True,
+                                     on_select="rerun", key="chart_creches_mun", config={"displayModeBar": False})
+        if ev_creches.selection.points:
+            clicked = ev_creches.selection.points[0].get("y")
+            if clicked and clicked in municipios:
+                new_val = "Todos" if st.session_state["sel_mun_state"] == clicked else clicked
+                st.session_state["sel_mun_state"] = new_val
+                st.session_state["sel_uni_state"] = "Todas"
+                st.rerun()
 
     st.divider()
 
@@ -382,14 +461,14 @@ with tab1:
         fig_c12.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_c12.update_layout(
             coloraxis_showscale=False,
-            xaxis=dict(range=[0, 120], tickfont=_FONT_BLACK),
-            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+            xaxis=dict(range=[0, 120], tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
             margin=dict(l=10, r=40, t=10, b=10),
             height=260,
             **_CHART_DEFAULTS,
         )
         st.caption(f"Base: {c12_total} unidades")
-        st.plotly_chart(fig_c12, use_container_width=True)
+        st.plotly_chart(fig_c12, use_container_width=True, config={"displayModeBar": False})
 
     with col_f04:
         st.markdown("<b style='color:white'>Formas de Comunicação com as Famílias (F04)</b>", unsafe_allow_html=True)
@@ -405,14 +484,14 @@ with tab1:
         fig_f04.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_f04.update_layout(
             coloraxis_showscale=False,
-            xaxis=dict(range=[0, 120], tickfont=_FONT_BLACK),
-            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+            xaxis=dict(range=[0, 120], tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
             margin=dict(l=10, r=40, t=10, b=10),
             height=260,
             **_CHART_DEFAULTS,
         )
         st.caption(f"Base: {f04_total} unidades")
-        st.plotly_chart(fig_f04, use_container_width=True)
+        st.plotly_chart(fig_f04, use_container_width=True, config={"displayModeBar": False})
 
     st.divider()
 
@@ -435,13 +514,21 @@ with tab1:
     fig_conf.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
     fig_conf.update_layout(
         coloraxis_showscale=False,
-        yaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
-        xaxis=dict(automargin=True, tickangle=-35, tickfont=_FONT_BLACK),
+        yaxis=dict(range=[0, 115], tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+        xaxis=dict(automargin=True, tickangle=-35, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
         margin=dict(l=10, r=10, t=10, b=100),
         height=400,
         **_CHART_DEFAULTS,
     )
-    st.plotly_chart(fig_conf, use_container_width=True)
+    ev_conf = st.plotly_chart(fig_conf, use_container_width=True,
+                              on_select="rerun", key="chart_conf_mun", config={"displayModeBar": False})
+    if ev_conf.selection.points:
+        clicked = ev_conf.selection.points[0].get("x")
+        if clicked and clicked in municipios:
+            new_val = "Todos" if st.session_state["sel_mun_state"] == clicked else clicked
+            st.session_state["sel_mun_state"] = new_val
+            st.session_state["sel_uni_state"] = "Todas"
+            st.rerun()
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -486,13 +573,13 @@ with tab2:
             fig_cb.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
             fig_cb.update_layout(
                 coloraxis_showscale=False,
-                xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
-                yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+                xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+                yaxis=dict(automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
                 margin=dict(l=10, r=30, t=10, b=10),
                 height=320,
                 **_CHART_DEFAULTS,
             )
-            st.plotly_chart(fig_cb, use_container_width=True)
+            st.plotly_chart(fig_cb, use_container_width=True, config={"displayModeBar": False})
 
         with col_r:
             _h4("Pontos de Atenção por Bloco (% Não)")
@@ -513,13 +600,13 @@ with tab2:
             fig_ib.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
             fig_ib.update_layout(
                 coloraxis_showscale=False,
-                xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
-                yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+                xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+                yaxis=dict(automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
                 margin=dict(l=10, r=30, t=10, b=10),
                 height=320,
                 **_CHART_DEFAULTS,
             )
-            st.plotly_chart(fig_ib, use_container_width=True)
+            st.plotly_chart(fig_ib, use_container_width=True, config={"displayModeBar": False})
 
         st.divider()
 
@@ -540,8 +627,8 @@ with tab2:
         fig_stack.update_layout(
             margin=dict(l=10, r=160, t=10, b=80),
             height=380,
-            xaxis=dict(tickangle=-25, tickfont=_FONT_BLACK),
-            yaxis=dict(tickfont=_FONT_BLACK),
+            xaxis=dict(tickangle=-25, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+            yaxis=dict(tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
             legend=dict(
                 orientation="v",
                 x=1.02, xanchor="left",
@@ -551,7 +638,7 @@ with tab2:
             ),
             **_CHART_DEFAULTS,
         )
-        st.plotly_chart(fig_stack, use_container_width=True)
+        st.plotly_chart(fig_stack, use_container_width=True, config={"displayModeBar": False})
 
         st.divider()
 
@@ -576,13 +663,13 @@ with tab2:
         fig_top.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_top.update_layout(
             coloraxis_showscale=False,
-            xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
-            yaxis=dict(autorange="reversed", automargin=True, tickfont=_FONT_BLACK),
+            xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
+            yaxis=dict(autorange="reversed", automargin=True, tickfont=_FONT_BLACK, title_font=_FONT_BLACK),
             margin=dict(l=10, r=30, t=10, b=10),
             height=420,
             **_CHART_DEFAULTS,
         )
-        st.plotly_chart(fig_top, use_container_width=True)
+        st.plotly_chart(fig_top, use_container_width=True, config={"displayModeBar": False})
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -667,7 +754,7 @@ with tab3:
     )
     _, col_mini, _ = st.columns([1, 2, 1])
     with col_mini:
-        st.plotly_chart(fig_mini, use_container_width=True)
+        st.plotly_chart(fig_mini, use_container_width=True, config={"displayModeBar": False})
 
     st.divider()
     _h4("Detalhamento por Unidade")
