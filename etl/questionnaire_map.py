@@ -98,3 +98,6 @@ FREE_TEXT_COLS = ["B03", "B05", "C062", "C145"]
 MULTI_CHOICE_COLS = ["C12_Tipo", "F04_Tipo"]
 
 VALID_RESPONSES = {"Sim", "Não", "Parcialmente"}
+
+# Questions where "Sim" = bad outcome and "Não" = conforming
+INVERTED_QUESTIONS = {"C14"}

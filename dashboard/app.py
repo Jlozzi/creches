@@ -8,7 +8,10 @@ import streamlit as st
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "etl"))
-from questionnaire_map import BLOCK_MAP, INVERTED_QUESTIONS  # noqa: E402
+from questionnaire_map import BLOCK_MAP  # noqa: E402
+
+# Perguntas onde "Sim" = problema e "Não" = conforme
+INVERTED_QUESTIONS = {"C14"}
 
 DATA_PATH = os.path.join(ROOT, "data", "fact_long.csv")
 
