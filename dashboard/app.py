@@ -25,7 +25,7 @@ MULTI_CHOICE_IDS = {"C12_Tipo", "F04_Tipo"}
 _CHART_DEFAULTS = dict(
     paper_bgcolor="rgba(255,255,255,1)",
     plot_bgcolor="rgba(255,255,255,1)",
-    font=dict(color="#1a1a1a"),
+    font=dict(color="#000000"),
 )
 
 # ── Page config ───────────────────────────────────────────────────────────────
