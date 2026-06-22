@@ -8,7 +8,7 @@ import streamlit as st
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "etl"))
-from questionnaire_map import BLOCK_MAP  # noqa: E402
+from questionnaire_map import BLOCK_MAP, INVERTED_QUESTIONS  # noqa: E402
 
 DATA_PATH = os.path.join(ROOT, "data", "fact_long.csv")
 
@@ -188,6 +188,14 @@ def load_data() -> pd.DataFrame:
     df["Resposta_Chart"] = df["Resposta"].apply(
         lambda r: r if r in valid else "Não Informado"
     )
+    # Para perguntas invertidas (ex: C14 "Há risco estrutural?"), Não = conforme
+    _swap = {"Sim": "Não", "Não": "Sim"}
+    df["Resposta_Conf"] = df.apply(
+        lambda row: _swap.get(row["Resposta"], row["Resposta"])
+        if row["ID_Pergunta"] in INVERTED_QUESTIONS and row["Resposta"] in _swap
+        else row["Resposta"],
+        axis=1,
+    )
     return df
 
 
@@ -260,11 +268,11 @@ df_valid = df[df["Resposta_Valida"]]
 n_municipios = df_units["Qmun"].nunique()
 n_unidades   = df_units["Qnome_unidade"].nunique()
 n_criancas   = int(df_units["Qcount_criancas_num"].sum())
-conf_geral   = round((df_valid["Resposta"] == "Sim").sum() / max(len(df_valid), 1) * 100, 1)
+conf_geral   = round((df_valid["Resposta_Conf"] == "Sim").sum() / max(len(df_valid), 1) * 100, 1)
 
 _nao_bloco = (
     df[df["Resposta_Valida"]]
-    .groupby("Bloco_ID")["Resposta"]
+    .groupby("Bloco_ID")["Resposta_Conf"]
     .apply(lambda x: (x == "Não").sum() / len(x) * 100)
 )
 bloco_pior     = _nao_bloco.idxmax() if not _nao_bloco.empty else "G"
@@ -498,9 +506,9 @@ with tab1:
     _h4("Conformidade por Município (%)")
     conf_mun = (
         df[df["Resposta_Valida"]]
-        .groupby("Qmun")["Resposta"]
+        .groupby("Qmun")["Resposta_Conf"]
         .apply(lambda x: round((x == "Sim").sum() / len(x) * 100, 1))
-        .reset_index().rename(columns={"Resposta": "Conformidade (%)"})
+        .reset_index().rename(columns={"Resposta_Conf": "Conformidade (%)"})
         .sort_values("Conformidade (%)", ascending=False)
     )
     fig_conf = px.bar(
@@ -556,9 +564,9 @@ with tab2:
         with col_l:
             _h4("Aderência por Bloco (% Sim)")
             conf_bloco = (
-                df_seg_valid.groupby("Bloco_ID")["Resposta"]
+                df_seg_valid.groupby("Bloco_ID")["Resposta_Conf"]
                 .apply(lambda x: round((x == "Sim").sum() / len(x) * 100, 1))
-                .reset_index().rename(columns={"Resposta": "Conformidade (%)"})
+                .reset_index().rename(columns={"Resposta_Conf": "Conformidade (%)"})
                 .sort_values("Conformidade (%)", ascending=True)
             )
             conf_bloco["Bloco"] = conf_bloco["Bloco_ID"].map(BLOCK_MAP)
@@ -584,9 +592,9 @@ with tab2:
         with col_r:
             _h4("Pontos de Atenção por Bloco (% Não)")
             inconf_bloco = (
-                df_seg_valid.groupby("Bloco_ID")["Resposta"]
+                df_seg_valid.groupby("Bloco_ID")["Resposta_Conf"]
                 .apply(lambda x: round((x == "Não").sum() / len(x) * 100, 1))
-                .reset_index().rename(columns={"Resposta": "Inconformidade (%)"})
+                .reset_index().rename(columns={"Resposta_Conf": "Inconformidade (%)"})
                 .sort_values("Inconformidade (%)", ascending=True)
             )
             inconf_bloco["Bloco"] = inconf_bloco["Bloco_ID"].map(BLOCK_MAP)
@@ -644,9 +652,9 @@ with tab2:
 
         _h4("Top 10 Perguntas com Maior Índice de Inconformidade")
         top_nao = (
-            df_seg_valid.groupby(["ID_Pergunta", "Texto_Pergunta"])["Resposta"]
+            df_seg_valid.groupby(["ID_Pergunta", "Texto_Pergunta"])["Resposta_Conf"]
             .apply(lambda x: round((x == "Não").sum() / len(x) * 100, 1))
-            .reset_index().rename(columns={"Resposta": "% Não"})
+            .reset_index().rename(columns={"Resposta_Conf": "% Não"})
             .sort_values("% Não", ascending=False).head(10)
         )
         top_nao["Label"] = (
@@ -696,6 +704,7 @@ with tab3:
         format_func=lambda k: opcoes[k],
     )
 
+    is_inverted   = pergunta_sel in INVERTED_QUESTIONS
     df_perg       = df[df["ID_Pergunta"] == pergunta_sel]
     df_perg_valid = df_perg[df_perg["Resposta_Valida"]]
 
@@ -712,7 +721,9 @@ with tab3:
     n_nao  = int((df_perg["Resposta"] == "Não").sum())
     n_parc = int((df_perg["Resposta"] == "Parcialmente").sum())
     n_ni   = int((~df_perg["Resposta_Valida"]).sum())
-    conf_p = round(n_sim / max(len(df_perg_valid), 1) * 100, 1)
+    conf_p = round(
+        (df_perg_valid["Resposta_Conf"] == "Sim").sum() / max(len(df_perg_valid), 1) * 100, 1
+    )
 
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1:
@@ -733,10 +744,11 @@ with tab3:
         .rename(columns={"Resposta_Chart": "Resposta"})
     )
     dist_p = dist_p[dist_p["Qtd"] > 0]
+    _colors_p = {**COLORS, "Sim": COLORS["Não"], "Não": COLORS["Sim"]} if is_inverted else COLORS
     fig_mini = go.Figure(go.Pie(
         labels=dist_p["Resposta"], values=dist_p["Qtd"],
         hole=0.6,
-        marker_colors=[COLORS[r] for r in dist_p["Resposta"]],
+        marker_colors=[_colors_p[r] for r in dist_p["Resposta"]],
         textinfo="label+percent",
         insidetextfont=dict(color="#ffffff"),
         outsidetextfont=dict(color="#1a1a1a"),
@@ -776,12 +788,18 @@ with tab3:
         tabela = tabela[mask_b].reset_index(drop=True)
 
     def _resposta_style(r: str) -> str:
+        if r == "Sim":
+            return (
+                "background:#FFCDD2;color:#B71C1C;font-weight:700" if is_inverted
+                else "background:#C8E6C9;color:#1B5E20;font-weight:700"
+            )
         if r == "Não":
-            return "background:#FFCDD2;color:#B71C1C;font-weight:700"
+            return (
+                "background:#C8E6C9;color:#1B5E20;font-weight:700" if is_inverted
+                else "background:#FFCDD2;color:#B71C1C;font-weight:700"
+            )
         if r == "Parcialmente":
             return "background:#FFF9C4;color:#7B6000"
-        if r == "Sim":
-            return "background:#C8E6C9;color:#1B5E20"
         return "color:#9E9E9E"
 
     linhas = ""
