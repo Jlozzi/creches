@@ -100,6 +100,30 @@ st.markdown("""
         border-color: #cccccc !important;
         border-radius: 8px !important;
     }
+
+    /* Caixas de seleção (selectbox) na sidebar — fundo branco, texto escuro */
+    section[data-testid="stSidebar"] [data-baseweb="select"] > div:first-child {
+        background-color: #ffffff !important;
+        border-color: #c0cfe8 !important;
+        border-radius: 8px !important;
+    }
+    section[data-testid="stSidebar"] [data-baseweb="select"] span,
+    section[data-testid="stSidebar"] [data-baseweb="select"] div {
+        color: #1a1a1a !important;
+    }
+    /* Dropdown aberto (lista de opções) */
+    [data-baseweb="popover"] [data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    [data-baseweb="popover"] [role="option"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    [data-baseweb="popover"] [role="option"]:hover,
+    [data-baseweb="popover"] [aria-selected="true"] {
+        background-color: #e8f0fe !important;
+        color: #1a559a !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -358,8 +382,9 @@ with tab1:
         fig_c12.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_c12.update_layout(
             coloraxis_showscale=False,
-            xaxis_range=[0, 120],
-            margin=dict(l=0, r=40, t=10, b=10),
+            xaxis=dict(range=[0, 120], tickfont=_FONT_BLACK),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+            margin=dict(l=10, r=40, t=10, b=10),
             height=260,
             **_CHART_DEFAULTS,
         )
@@ -380,8 +405,9 @@ with tab1:
         fig_f04.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_f04.update_layout(
             coloraxis_showscale=False,
-            xaxis_range=[0, 120],
-            margin=dict(l=0, r=40, t=10, b=10),
+            xaxis=dict(range=[0, 120], tickfont=_FONT_BLACK),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+            margin=dict(l=10, r=40, t=10, b=10),
             height=260,
             **_CHART_DEFAULTS,
         )
@@ -409,9 +435,8 @@ with tab1:
     fig_conf.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
     fig_conf.update_layout(
         coloraxis_showscale=False,
-        yaxis_range=[0, 115],
-        xaxis_tickangle=-35,
-        xaxis=dict(automargin=True),
+        yaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
+        xaxis=dict(automargin=True, tickangle=-35, tickfont=_FONT_BLACK),
         margin=dict(l=10, r=10, t=10, b=100),
         height=400,
         **_CHART_DEFAULTS,
