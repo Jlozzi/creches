@@ -21,11 +21,14 @@ COLORS = {
 RESP_ORDER = ["Sim", "Parcialmente", "Não", "Não Informado"]
 MULTI_CHOICE_IDS = {"C12_Tipo", "F04_Tipo"}
 
-# Padrão aplicado a todos os gráficos Plotly: fundo branco + texto escuro
+# Fonte preta explícita para todos os elementos do gráfico
+_FONT_BLACK = dict(color="#000000", family="sans-serif")
+
+# Padrão aplicado a todos os gráficos Plotly
 _CHART_DEFAULTS = dict(
     paper_bgcolor="rgba(255,255,255,1)",
     plot_bgcolor="rgba(255,255,255,1)",
-    font=dict(color="#000000"),
+    font=_FONT_BLACK,
 )
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -247,7 +250,8 @@ with tab1:
         )
         fig_bar.update_layout(
             coloraxis_showscale=False,
-            yaxis=dict(automargin=True),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+            xaxis=dict(tickfont=_FONT_BLACK),
             margin=dict(l=10, r=60, t=10, b=10),
             height=CHART_H,
             **_CHART_DEFAULTS,
@@ -279,7 +283,10 @@ with tab1:
         fig_donut.update_layout(
             margin=dict(l=10, r=10, t=10, b=10),
             showlegend=True,
-            legend=dict(orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center"),
+            legend=dict(
+                orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center",
+                font=_FONT_BLACK,
+            ),
             height=donut_h,
             **_CHART_DEFAULTS,
         )
@@ -306,7 +313,8 @@ with tab1:
         )
         fig_creches.update_layout(
             coloraxis_showscale=False,
-            yaxis=dict(automargin=True),
+            yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
+            xaxis=dict(tickfont=_FONT_BLACK),
             margin=dict(l=10, r=60, t=10, b=10),
             height=creches_h,
             **_CHART_DEFAULTS,
@@ -453,8 +461,8 @@ with tab2:
             fig_cb.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
             fig_cb.update_layout(
                 coloraxis_showscale=False,
-                xaxis_range=[0, 115],
-                yaxis=dict(automargin=True),
+                xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
+                yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
                 margin=dict(l=10, r=30, t=10, b=10),
                 height=320,
                 **_CHART_DEFAULTS,
@@ -480,8 +488,8 @@ with tab2:
             fig_ib.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
             fig_ib.update_layout(
                 coloraxis_showscale=False,
-                xaxis_range=[0, 115],
-                yaxis=dict(automargin=True),
+                xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
+                yaxis=dict(automargin=True, tickfont=_FONT_BLACK),
                 margin=dict(l=10, r=30, t=10, b=10),
                 height=320,
                 **_CHART_DEFAULTS,
@@ -507,12 +515,14 @@ with tab2:
         fig_stack.update_layout(
             margin=dict(l=10, r=160, t=10, b=80),
             height=380,
-            xaxis_tickangle=-25,
+            xaxis=dict(tickangle=-25, tickfont=_FONT_BLACK),
+            yaxis=dict(tickfont=_FONT_BLACK),
             legend=dict(
                 orientation="v",
                 x=1.02, xanchor="left",
                 y=0.5, yanchor="middle",
                 title="",
+                font=_FONT_BLACK,
             ),
             **_CHART_DEFAULTS,
         )
@@ -541,10 +551,10 @@ with tab2:
         fig_top.update_traces(texttemplate="%{text}%", textposition="outside", textfont=dict(color="#1a1a1a"), cliponaxis=False)
         fig_top.update_layout(
             coloraxis_showscale=False,
-            xaxis_range=[0, 115],
+            xaxis=dict(range=[0, 115], tickfont=_FONT_BLACK),
+            yaxis=dict(autorange="reversed", automargin=True, tickfont=_FONT_BLACK),
             margin=dict(l=10, r=30, t=10, b=10),
             height=420,
-            yaxis={"autorange": "reversed", "automargin": True},
             **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_top, use_container_width=True)
@@ -624,7 +634,10 @@ with tab3:
         margin=dict(l=10, r=10, t=10, b=10),
         height=300,
         showlegend=True,
-        legend=dict(orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center"),
+        legend=dict(
+            orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center",
+            font=_FONT_BLACK,
+        ),
         **_CHART_DEFAULTS,
     )
     _, col_mini, _ = st.columns([1, 2, 1])
