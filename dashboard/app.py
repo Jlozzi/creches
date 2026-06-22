@@ -269,7 +269,7 @@ _nao_bloco = (
 )
 bloco_pior     = _nao_bloco.idxmax() if not _nao_bloco.empty else "G"
 inconf_g       = round(_nao_bloco.max(), 1) if not _nao_bloco.empty else 0.0
-bloco_pior_nome = BLOCK_MAP.get(bloco_pior, bloco_pior)
+bloco_pior_nome = BLOCK_MAP.get(bloco_pior, bloco_pior).replace(" Física", "")
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3 = st.tabs([
