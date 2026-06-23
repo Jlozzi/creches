@@ -338,19 +338,20 @@ with tab1:
             values=dist["Qtd"],
             hole=0.55,
             marker_colors=[COLORS[r] for r in dist["Resposta"]],
-            textinfo="label+percent",
-            insidetextfont=dict(color="#ffffff"),
-            outsidetextfont=dict(color="#1a1a1a"),
+            textinfo="percent",
+            textposition="inside",
+            insidetextfont=dict(color="#ffffff", size=13),
             sort=False,
+            domain={"x": [0, 1], "y": [0.28, 1.0]},
         ))
         fig_donut.update_layout(
-            margin=dict(l=20, r=20, t=20, b=120),
+            margin=dict(l=10, r=10, t=10, b=10),
             showlegend=True,
             legend=dict(
-                orientation="h", yanchor="top", y=-0.16, x=0.5, xanchor="center",
+                orientation="h", yanchor="bottom", y=0.01, x=0.5, xanchor="center",
                 font=_FONT_BLACK,
             ),
-            height=480,
+            height=360,
             **_CHART_DEFAULTS,
         )
         st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": False})
@@ -752,17 +753,18 @@ with tab3:
         labels=dist_p["Resposta"], values=dist_p["Qtd"],
         hole=0.6,
         marker_colors=[_colors_p[r] for r in dist_p["Resposta"]],
-        textinfo="label+percent",
-        insidetextfont=dict(color="#ffffff"),
-        outsidetextfont=dict(color="#1a1a1a"),
+        textinfo="percent",
+        textposition="inside",
+        insidetextfont=dict(color="#ffffff", size=13),
         sort=False,
+        domain={"x": [0, 1], "y": [0.28, 1.0]},
     ))
     fig_mini.update_layout(
         margin=dict(l=10, r=10, t=10, b=10),
         height=300,
         showlegend=True,
         legend=dict(
-            orientation="h", yanchor="top", y=-0.05, x=0.5, xanchor="center",
+            orientation="h", yanchor="bottom", y=0.01, x=0.5, xanchor="center",
             font=_FONT_BLACK,
         ),
         **_CHART_DEFAULTS,
